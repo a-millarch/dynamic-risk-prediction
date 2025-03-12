@@ -54,22 +54,10 @@ def get_threshold(y_true, y_score, method="F-score", beta=None):
 
     elif method == "F-score":
         precision, recall, thresholds = precision_recall_curve(y_true, y_score)
-        df_recall_precision = pd.DataFrame(
-            {
-                "Precision": precision[:-1],
-                "Recall": recall[:-1],
-                "Threshold": thresholds,
-            }
-        )
         fscore = (2 * precision * recall) / (precision + recall)
         # Find the optimal threshold
         index = np.argmax(fscore)
         thresholdOpt = round(thresholds[index], ndigits=4)
-        fscoreOpt = round(fscore[index], ndigits=4)
-        recallOpt = round(recall[index], ndigits=4)
-        precisionOpt = round(precision[index], ndigits=4)
-        #   print('Best Threshold: {}'.format(thresholdOpt))
-
         threshold = thresholdOpt
 
     elif method == "Fbeta-score":
@@ -90,12 +78,6 @@ def get_threshold(y_true, y_score, method="F-score", beta=None):
         # Find the optimal threshold
         index = np.argmax(fscore)
         thresholdOpt = round(thresholds[index], ndigits=4)
-        fscoreOpt = round(fscore[index], ndigits=4)
-        recallOpt = round(recall[index], ndigits=4)
-        precisionOpt = round(precision[index], ndigits=4)
-        # print('Best Threshold: {}'.format(thresholdOpt))
-        # print('Recall: {}, Precision: {}'.format(recallOpt, precisionOpt))
-
         threshold = thresholdOpt
 
     return threshold

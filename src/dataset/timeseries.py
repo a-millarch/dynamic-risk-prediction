@@ -1,7 +1,6 @@
 import logging
-from src.common.log_config import setup_logging
 from src.data.get import get_concept
-
+from src.common.log_config import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
