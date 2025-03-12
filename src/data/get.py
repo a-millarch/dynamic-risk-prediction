@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from src.data.utils import cfg
 
-from src.common.log_config import setup_logging, clear_log
+from src.common.log_config import setup_logging
 import logging
 
 setup_logging()

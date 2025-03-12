@@ -1,8 +1,6 @@
-from azure.identity import DefaultAzureCredential
-from azureml.core import Workspace, Datastore, Dataset, Environment
+from azureml.core import Dataset
 
 import pandas as pd
-import numpy as np
 
 from src.data.utils import add_categorical_variable, cfg
 

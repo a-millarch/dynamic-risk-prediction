@@ -1,17 +1,13 @@
 import os
-import pandas as pd
 import pyarrow.parquet as pq
-import mltable
-from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential
-from azureml.core import Workspace, Datastore, Dataset, Environment
+from azureml.core import Dataset
 
 import logging
 
 from src.utils import is_file_present, are_files_present
 from src.data.utils import cfg, get_base_df
 from src.utils import is_file_present, are_files_present
-from src.common.log_config import setup_logging, clear_log
+from src.common.log_config import setup_logging
 from src.data.downloader import download_to_local
 
 

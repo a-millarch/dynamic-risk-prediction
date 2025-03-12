@@ -1,7 +1,9 @@
-from src.common.common_imports import *
-from src.data.get import get_vitals, get_concept
-import copy
+import logging
+from src.common.log_config import setup_logging
+from src.data.get import get_concept
 
+setup_logging()
+logger = logging.getLogger(__name__)
 
 class TSDS:
     def __init__(

@@ -1,69 +1,34 @@
-import os
-import warnings
-import copy
-from copy import deepcopy
 import gc
-import pickle
-from math import sqrt
 import json
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 import torch
 
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.metrics import (
-    auc,
-    roc_curve,
-    roc_auc_score,
-    precision_recall_curve,
-    average_precision_score,
-)
-from fastai.tabular.all import (
-    TabularPandas,
-    RandomSplitter,
-    CrossEntropyLossFlat,
-    tabular_learner,
-    L,
-)
+from sklearn.model_selection import StratifiedKFold
 from fastai.data.transforms import Categorize
 from fastai.tabular.core import Categorify, FillMissing, Normalize
 
 from tsai.data.core import get_ts_dls
 from tsai.data.preprocessing import (
     TSStandardize,
-    TSNormalize,
-    TSMultiLabelClassification,
 )
 from tsai.data.tabular import get_tabular_dls
 from tsai.data.mixed import get_mixed_dls
-from tsai.data.validation import get_splits
 from tsai.data.preparation import df2xy
 from tsai.all import (
-    TensorMultiCategory,
-    TSTPlus,
-    count_parameters,
     TSTabFusionTransformer,
-    computer_setup,
     LabelSmoothingCrossEntropyFlat,
     Learner,
     RocAucBinary,
     APScoreBinary,
-    CrossEntropyLossFlat,
 )
 
-from src.utils import find_columns_with_word, clear_mem, get_cfg
 from src.dataset.timeseries import TSDS
 from src.data.utils import align_dataframes
 from src.visualize import (
-    plot_evaluation,
-    plot_box_kde,
     plot_loss,
     plot_fold_evaluation,
-    create_calibration_plot,
-    evaluate_detection_rate,
 )
 from src.common.log_config import setup_logging, clear_log
 
@@ -73,7 +38,7 @@ from src.training.utils import (
     evaluate_and_log_fmetrics,
     calculate_fmetrics_stats,
 )
-from src.training.utils import log_figures, save_metrics, NumpyEncoder
+from src.training.utils import save_metrics
 from src.training.tsai_custom import CSaveModel
 
 import mlflow
@@ -83,8 +48,6 @@ import hydra
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
-from collections import OrderedDict
-import yaml
 
 import logging
 
@@ -118,11 +81,10 @@ def train(cfg: DictConfig):
         )
         # Setup
         exclude = ["deceased_30d"]
-        # cat_cols = ['SEX']
+     
         cat_cols = OmegaConf.to_object(cfg["dataset"]["cat_cols"])
-        # cat_cols = ['SEX', 'LVL1TC']
         ppj_cat_cols = OmegaConf.to_object(cfg["dataset"]["ppj_cat_cols"])
-        # ppj_cat_cols = ['A: Luftveje', 'B: Respiration', 'C: Cirkulation', 'D: Bevidsthedsniveau']
+        
         cat_cols = cat_cols + ppj_cat_cols
         num_cols = [
             i

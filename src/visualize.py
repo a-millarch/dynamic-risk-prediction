@@ -2,17 +2,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
-from collections import OrderedDict
 
 from sklearn.metrics import (
     roc_curve,
-    auc,
     roc_auc_score,
-    brier_score_loss,
-    precision_recall_curve,
-    f1_score,
-    precision_score,
-    recall_score,
     RocCurveDisplay,
     PrecisionRecallDisplay,
     confusion_matrix,
@@ -22,7 +15,6 @@ from sklearn.metrics import (
 from sklearn.calibration import calibration_curve
 
 from fastai.tabular.all import L
-from math import sqrt
 
 
 def plot_box_kde(df, dep, y):
@@ -146,8 +138,8 @@ def plot_loss(learn, fold=None):
     ax.set_xlabel("Iterations")
     ax.set_ylabel("Loss")
     if fold is None:
-        ax.set_title(f"Loss Plot")
-        plt.savefig(f"models/figs/loss_plot.png")
+        ax.set_title("Loss Plot")
+        plt.savefig("models/figs/loss_plot.png")
     else:
         ax.set_title(f"Loss Plot for Fold {fold}")
         # Save the figure
@@ -257,7 +249,7 @@ def evaluate_detection_rate(y_preds, y_true, threshold=0.5):
     ax[1].set_title("Confusion Matrix (Normalized)")
 
     plt.tight_layout()
-    plt.savefig(f"models/figs/cm")
+    plt.savefig("models/figs/cm")
     plt.show()
     return fig
 

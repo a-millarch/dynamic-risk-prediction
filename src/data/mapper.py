@@ -3,7 +3,7 @@ import dask.dataframe as dd
 from src.common.common_imports import *
 from src.data.processors import merge_and_aggregate
 from src.data.utils import get_bin_df
-from src.data.filters import filter_vitals, collect_filter
+from src.data.filters import collect_filter
 
 
 def map_concept(cfg, concept: str, agg_func):
@@ -18,7 +18,7 @@ def map_concept(cfg, concept: str, agg_func):
 
     # Process each feature
     dfs = []
-    logger.info(f"Processing each feature")
+    logger.info("Processing each feature")
 
     for feat in concept_df.FEATURE.unique():
         logger.info(f"start {feat}")
@@ -75,7 +75,7 @@ def map_concept_dask(cfg, concept: str, agg_func):
 
     # split vitals by feature, merge aggregate and append feature specific df to list
     dfs = []
-    logger.info(f"Processing each feature with partitions")
+    logger.info("Processing each feature with partitions")
 
     for feat in concept_df.FEATURE.unique():
         logger.info(f"start {feat}")

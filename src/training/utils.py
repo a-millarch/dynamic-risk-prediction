@@ -3,29 +3,9 @@ import numpy as np
 import pandas as pd
 import json
 
-from tsai.data.core import get_ts_dls
-from tsai.data.preprocessing import (
-    TSStandardize,
-    TSNormalize,
-    TSMultiLabelClassification,
-)
-from tsai.data.tabular import get_tabular_dls
-from tsai.data.mixed import get_mixed_dls
-from tsai.data.validation import get_splits
-from tsai.data.preparation import df2xy
-from tsai.all import TensorMultiCategory
-from tsai.all import (
-    computer_setup,
-    TSTPlus,
-    count_parameters,
-    TSTabFusionTransformer,
-    SaveModel,
-)
-
 from sklearn.metrics import (
     auc,
     roc_curve,
-    roc_auc_score,
     precision_recall_curve,
     average_precision_score,
 )
@@ -168,10 +148,6 @@ def initialize_metrics():
             "scores": [],
         },
         "meta": {"best_epoch": []},
-        #    "fscore": {"best_score": 0, "best_model": None, "best_fold": 0, "scores": []},
-        #    "fbetascore": {"best_score": 0, "best_model": None, "best_fold": 0, "scores": []},
-        #    "optimal_threshold_f1": {"best_score": 0, "best_model": None, "best_fold": 0, "scores": []},
-        #    "optimal_threshold_fbeta": {"best_score": 0, "best_model": None, "best_fold": 0, "scores": []},
         "precision": {"scores": []},
         "recall": {"scores": []},
         "fpr": {"scores": []},
@@ -280,93 +256,3 @@ def evaluate_and_log_metrics(
     }
 
     return metrics, latest_metrics
-
-
-def evaluate_and_log_metrics_legacy(preds, target, metrics=None, beta=2):
-    if metrics is None:
-        metrics = {
-            "roc_aucs": [],
-            "aps": [],
-            "fscores": [],
-            "fbetascores": [],
-            "precisions": [],
-            "recalls": [],
-            "fprs": [],
-            "tprs": [],
-        }
-
-    # Calculate ROC curve and AUC
-    fpr, tpr, _ = roc_curve(target, preds)
-    roc_auc = auc(fpr, tpr)
-
-    # Calculate PR curve, AP, F-scores
-    precision, recall, _ = precision_recall_curve(target, preds)
-    fscore = (2 * precision * recall) / (precision + recall)
-    fbetascore = ((1 + pow(beta, 2)) * precision * recall) / (
-        pow(beta, 2) * precision + recall
-    )
-    ap = average_precision_score(target, preds)
-
-    # Append results to the lists in the metrics dictionary
-    metrics["roc_aucs"].append(roc_auc)
-    metrics["aps"].append(ap)
-    metrics["fprs"].append(fpr)
-    metrics["tprs"].append(tpr)
-    metrics["precisions"].append(precision)
-    metrics["recalls"].append(recall)
-
-    # Log metrics for each fold
-    mlflow.log_metric(f"roc_auc", roc_auc)
-    mlflow.log_metric(f"avg_precision", ap)
-    mlflow.log_metric(f"f1-score", fscore)
-    mlflow.log_metric(f"f{beta}-score", ap)
-
-    latest_metrics = {
-        "roc_auc": roc_auc,
-        "avg_precision": ap,
-        "precision": precision,
-        "recall": recall,
-        "fpr": fpr,
-        "tpr": tpr,
-        "fscore": fscore,
-        "fbetascore": fbetascore,
-    }
-
-    return metrics, latest_metrics
-
-
-### WIP
-
-
-def custom_load_model(model_name="best_ap"):
-    classes = test_tab_dls.classes
-    model = TSTabFusionTransformer(
-        holdout_mixed_dls.vars,
-        2,
-        holdout_mixed_dls.len,
-        classes,
-        num_cols,
-        fc_dropout=0.6,
-        res_dropout=0.2,
-    )
-
-    smcb = SaveModel(
-        monitor="valid_loss",
-        fname=f"model_fold",
-        every_epoch=False,
-        at_end=False,
-        with_opt=False,
-        reset_on_fit=True,
-        comp=None,
-    )
-    loss_func = LabelSmoothingCrossEntropyFlat()
-
-    learn = Learner(
-        holdout_mixed_dls,
-        model,
-        loss_func=loss_func,
-        metrics=[RocAucBinary()],
-        cbs=[smcb],
-    )
-    learn.load(model_name)
-    return learn

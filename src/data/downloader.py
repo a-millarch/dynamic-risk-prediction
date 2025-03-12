@@ -1,6 +1,5 @@
 import os
-from azure.identity import DefaultAzureCredential
-from azureml.core import Workspace, Datastore, Dataset, Environment
+from azureml.core import Workspace, Datastore, Dataset
 from src.utils import is_file_present
 
 

@@ -3,9 +3,8 @@ import numpy as np
 
 import subprocess
 
-from src.data.utils import cfg, get_base_df
-from src.common.log_config import setup_logging, clear_log
-from src.utils import is_file_present, are_files_present
+from src.common.log_config import setup_logging
+from src.utils import is_file_present
 from src.utils import inches_to_cm, ounces_to_kg
 
 import logging

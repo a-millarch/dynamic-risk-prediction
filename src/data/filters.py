@@ -1,13 +1,10 @@
 import pandas as pd
 import numpy as np
 
-from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential
-from azureml.core import Workspace, Datastore, Dataset, Environment
 
 
-from src.data.utils import cfg, get_base_df, expand_datetime_rows, mark_keywords_in_df
-from src.common.log_config import setup_logging, clear_log
+from src.data.utils import cfg, get_base_df, mark_keywords_in_df
+from src.common.log_config import setup_logging
 from src.utils import ensure_datetime, is_file_present
 from src.utils import inches_to_cm, ounces_to_kg
 import gc

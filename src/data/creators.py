@@ -1,16 +1,11 @@
-import os
 import pandas as pd
-import mltable
-from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential
-from azureml.core import Workspace, Datastore, Dataset, Environment
 
 import logging
 
-from src.data.utils import cfg, get_base_df, create_enumerated_id
-from src.common.log_config import setup_logging, clear_log
+from src.data.utils import get_base_df, create_enumerated_id
+from src.common.log_config import setup_logging
 from src.data.collectors import collect_procedures, population_filter_parquet
-from src.utils import ensure_datetime, is_file_present
+from src.utils import ensure_datetime
 
 setup_logging()
 logger = logging.getLogger(__name__)
