@@ -3,50 +3,39 @@ import os
 compute_name = 'amil-gpu1'
 os.chdir(f'/mnt/batch/tasks/shared/LS_root/mounts/clusters/{compute_name}/code/Users/andreas.skov.millarch/repos/DTTD')
 
-import warnings
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve, auc
 import numpy as np
 
 from fastai.tabular.all import *#TabularPandas, RandomSplitter, CrossEntropyLossFlat, tabular_learner
-from src.utils import find_columns_with_word, clear_mem
+from src.utils import clear_mem
 
 import pandas as pd 
 import numpy as np 
-import pickle
-import copy 
 
 from tsai.data.core import get_ts_dls
-from tsai.data.preprocessing import TSStandardize, TSNormalize, TSMultiLabelClassification
+from tsai.data.preprocessing import TSStandardize
 from tsai.data.tabular import get_tabular_dls
 from tsai.data.mixed import get_mixed_dls
-from tsai.data.validation import get_splits
 from tsai.data.preparation import df2xy
-from tsai.all import TensorMultiCategory
 
 from fastai.data.transforms import Categorize
 from fastai.tabular.core import Categorify, FillMissing, Normalize
 from fastai.callback.core import TrainEvalCallback
 
 
-from omegaconf import OmegaConf
-from src.visualize import plot_evaluation, plot_box_kde, plot_loss, plot_fold_evaluation, create_calibration_plot, evaluate_detection_rate
-from sklearn.metrics import auc, roc_curve, roc_auc_score, precision_recall_curve, average_precision_score
+from src.visualize import plot_loss
 
 from src.data.utils import get_cfg
-from src.training.utils import initialize_metrics, evaluate_and_log_metrics
-from src.training.utils import initialize_fmetrics, evaluate_and_log_fmetrics, calculate_fmetrics_stats 
+from src.training.utils import initialize_metrics
+from src.training.utils import initialize_fmetrics 
 from src.common.log_config import setup_logging, clear_log
 from src.evaluation import calculate_roc_auc_ci, evaluate, calculate_average_precision_ci
 from src.dataset.timeseries import TSDS
 from src.data.utils import align_dataframes
-from src.visualize import plot_evaluation, plot_box_kde
-from tsai.all import computer_setup, TSTPlus, count_parameters, TSTabFusionTransformer#,SaveModel
+from tsai.all import TSTabFusionTransformer#,SaveModel
 from tsai.all import get_tabular_dls
 
-from src.training.tsai_custom import CSaveModel
-from src.evaluation import get_internal_validation_thresholds, dl_file_from_run, is_float_in_range
+from src.evaluation import get_internal_validation_thresholds
 
 import logging 
 

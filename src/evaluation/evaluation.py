@@ -3,13 +3,12 @@ import matplotlib.pyplot as plt
 
 from azureml.core import Experiment, Run, Workspace
 import mlflow
-from mlflow import MlflowClient
 from src.training.utils import get_threshold
 import numpy as np 
 import ast
 import os
 
-from src.visualize import plot_evaluation, plot_box_kde, plot_loss, plot_fold_evaluation, create_calibration_plot, evaluate_detection_rate, plot_hist_kde
+from src.visualize import plot_evaluation, create_calibration_plot, evaluate_detection_rate, plot_hist_kde
 from sklearn.metrics import auc, roc_curve, roc_auc_score, precision_recall_curve, average_precision_score
 
 from scipy import stats
@@ -244,26 +243,6 @@ def evaluate(holdout_mixed_dls, learn , threshold):
     
     # CM: Detection rate
     fig = evaluate_detection_rate(y_preds=preds, y_true=target, threshold=threshold)
-    
+        
+    plot_net_benefit(target, preds)
 
-    
-    #plot_net_benefit(target, preds)
-
-    # benefit
-    # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Plot the net benefit curve on the created axis
-    net_benefit_display.plot(ax=ax)
-
-    # Set the X-axis maximum to 0.2
-    ax.set_xlim(0.0,1.0)
-    ax.set_ylim(0.0,0.1)
-
-    # Add labels and title
-    ax.set_xlabel('Threshold')
-    ax.set_ylabel('Net Benefit')
-    ax.set_title('Net Benefit Curve')
-
-    # Add a legend
-    ax.legend()
