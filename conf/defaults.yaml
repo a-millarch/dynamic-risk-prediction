@@ -1,0 +1,163 @@
+experiment_name: k_fold_sweep
+run_name: stratified
+
+concepts: 
+  - ITAOversigtsrapport
+  - VitaleVaerdier
+  - Labsvar
+  - Medicin
+  - Procedurer
+  
+TB_only: False
+prehospital: True
+prehospital_only: True
+
+dataset:
+  overwrite: True 
+  max_duration_days: 365 #now cut off using bins 
+  min_bin_seq_len: 1
+  
+  start_year: 2017
+  end_year: 2024
+  
+  age_min: 0
+  age_max: 90
+
+  cat_cols:
+      - SEX
+      - LVL1TC
+
+  ppj_cat_cols:
+      - A
+      - B
+      - C
+      - D
+training:
+    folds: 5
+    epochs: 15
+    bs: 64
+    
+model:
+    res_dropout: 0.4
+    fc_dropout: 0.8
+    n_layers: 6
+    n_heads: 4 
+    d_model: 64
+    d_k: None
+    d_v: None
+    d_ff: None
+    
+evaluation:
+    max_f_beta: 10
+    f_beta: 4
+    threshold_mode: f1 #fbeta
+    
+base_df_path: data/interim/base_df.pkl
+raw_file_path: sp-data
+bin_df_path: data/interim/bin_df.pkl
+
+
+
+default_load_filenames:
+  #- ADTHaendelser
+  - Diagnoser
+  - Procedurer
+  #- ITA'
+  - VitaleVaerdier
+  - Cases
+  - ITAOversigtsrapport
+  
+large_load_filenames:
+  - Labsvar
+  - Medicin
+  - Notater
+ 
+bin_intervals:
+  6h: '10min'
+  12h: '20min'
+  24h: '1h'
+  72h: '4h'
+  14D: '12h'
+  30D: '1D'
+  90D: '7D'
+  end: '30D'
+
+bin_freq_include:
+  - '10min'
+  - '20min'
+  - '1h'
+  - '4h'
+  - '12h'
+  - '1D'
+  - '7D'
+  #- '30D'
+  
+agg_func: #also for datasets, split it up
+  VitaleVaerdier:
+      #- first # tmp on for tab
+      - mean
+      - std
+  ITAOversigtsrapport:
+     # - first
+     # - max
+      - min
+  Labsvar:
+      - max
+      #- min
+  Medicin:
+      - max
+     # - count
+     # - sum
+  Procedurer:
+      - max
+      
+# Mapping
+npartitions:
+  bin_df: 8
+  VitaleVaerdier: 16
+  ITAOversigtsrapport: 1
+  Diagnoser: 4
+  Labsvar: 4
+  Medicin: 4
+  
+mapping:
+ Diagnoser: cat
+ 
+# timeseries 
+
+  
+drop_features:
+  VitaleVaerdier:
+    - nan
+    - MAP
+    - DBP
+  ITAOversigtsrapport:
+   - SAPS3
+   - SOFA
+   - SOFA total score # TODO: purge, reload files and remove these
+   - SAPS 3 SCORE
+  Labsvar:
+   - nan
+   - B-GROUP-LEUKOCYTES
+  Medicin:
+  - nan
+  #- blood
+  #- infusion
+  prehospital_VitaleVaerdier:
+    - nan
+  Procedurer:
+    - nan
+
+   
+target: deceased_90d
+
+holdout_fraction: 0.2
+holdout_type: random #temporal
+seed: 2024
+
+Medicin: 
+    ATC_keep_len: 3
+ 
+ 
+#defaults:
+#  - training: train

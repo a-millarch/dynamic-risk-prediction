@@ -1,0 +1,152 @@
+defaults:
+  - override hydra/sweeper: optuna
+
+experiment_name: NEJM
+run_name: folded_hpm
+
+hydra:
+  sweeper:
+    sampler:
+      seed: 42
+    direction: maximize
+    study_name: train_model
+    n_trials: 20
+    n_jobs: 1
+    params:
+      training.bs: choice(16,32)
+      model.res_dropout: range(0.30,0.7, step=0.1)
+      model.fc_dropout: range(0.60,0.9, step=0.1)
+      model.n_layers: choice(4,6,8)
+      model.n_heads: choice(2,4,8) 
+      model.d_model: choice(64,128)
+      model.fc_mults_1: range(0.10,1.0, step=0.1)
+      model.fc_mults_2: range(0.050,0.5, step=0.05)
+
+TB_only: False
+prehospital: True
+prehospital_only: True
+
+dataset:
+  overwrite: True 
+  max_duration_days: 365 #now cut off using bins 
+  min_bin_seq_len: 0
+  
+  start_year: 2017
+  end_year: 2024
+  
+  age_min: 0
+  age_max: 90
+
+  cat_cols:
+      - SEX
+      - LVL1TC
+
+  ppj_cat_cols:
+      - A
+      - B
+      - C
+      - D
+training:
+    folds: 5
+    epochs: 20 
+    bs: 32
+    fixed_lr: true
+    lr: 0.0004786300996784121
+    
+model:
+    res_dropout: 0.22
+    fc_dropout: 0.75
+    n_layers: 8
+    n_heads: 8 
+    d_model: 64
+    d_k: None
+    d_v: None
+    d_ff: None
+    fc_mults_1: 0.3
+    fc_mults_2: 0.1
+evaluation:
+    max_f_beta: 15
+    f_beta: 4
+    threshold_mode: fbeta
+    
+base_df_path: data/interim/base_df.pkl
+raw_file_path: sp-data
+bin_df_path: data/interim/bin_df.pkl
+
+default_load_filenames:
+  - Diagnoser
+  - VitaleVaerdier
+  - Cases
+  - ITAOversigtsrapport
+  
+large_load_filenames:
+  - Labsvar
+  - Medicin
+  - Notater
+  
+bin_intervals:
+  6h: '10min'
+  12h: '20min'
+  24h: '1h'
+  72h: '4h'
+  14D: '12h'
+  30D: '1D'
+  90D: '7D'
+  end: '30D'
+
+bin_freq_include:
+  - '10min'
+  - '20min'
+  - '1h'
+  - '4h'
+  - '12h'
+  - '1D'
+  - '7D'
+  #- '30D'  
+  
+agg_func: 
+  VitaleVaerdier:
+      - mean
+      - std
+  ITAOversigtsrapport:
+      - min
+  Labsvar:
+      - max
+  Medicin:
+      - max
+      
+npartitions:
+  bin_df: 8
+  VitaleVaerdier: 16
+  ITAOversigtsrapport: 1
+  Diagnoser: 4
+  Labsvar: 4
+  Medicin: 4
+  
+drop_features:
+  VitaleVaerdier:
+    - nan
+    - MAP
+    - DBP
+  ITAOversigtsrapport:
+   - SAPS3
+   - SOFA
+   - SOFA total score
+   - SAPS 3 SCORE
+  Labsvar:
+   - nan
+   - B-GROUP-LEUKOCYTES
+  Medicin:
+  - nan
+  prehospital_VitaleVaerdier:
+    - nan
+
+   
+target: deceased_90d
+
+holdout_fraction: 0.2
+holdout_type: random
+seed: 2024
+
+Medicin: 
+    ATC_keep_len: 3
