@@ -1,5 +1,7 @@
 import pandas as pd
+from src.data.utils import cfg, get_base_df
 
+from src.dataset.tabular import TabDS
 import logging
 
 from src.data.utils import get_base_df, create_enumerated_id
@@ -393,3 +395,192 @@ def create_bin_df(cfg):
 
     # Save DataFrame to pickle file
     bin_df.to_pickle(cfg["bin_df_path"])
+
+
+def load_ppj_mapping():
+    
+    from azureml.core import  Dataset
+
+    # get mapping for merging data
+    ppj_path =  'ppj.csv'
+    ppj = Dataset.Tabular.from_delimited_files(path= ppj_path, separator=';').to_pandas_dataframe()
+    ppj.drop(columns="Column1", inplace=True)
+    ppj.drop_duplicates(inplace=True)
+    return ppj
+
+def load_ppj_data():
+    # Temp function to concat raw PPJ data. Full PPJ pending upload to Azure
+    ppj_data = []
+    # note, 2025 file is of course just a tmp fix to missing people
+    for year in range(2017,2027):
+        print(year)
+        ppj_data.append(pd.read_csv(f'data/dumps/ppj/{year}.csv', sep=';', index_col=0))
+
+    ppj = pd.concat(ppj_data)
+
+def create_bin_df_ppj(base, bin_intervals, start_colname, end_colname, save_path=None):
+    bin_list = []
+   
+    for _, row in base.iterrows():
+        start_time = row[start_colname]
+        end_time = row[end_colname] + pd.Timedelta(minutes=10)
+        pid = row['PID']
+        
+        current_time = start_time
+        bin_counter = 1
+        
+        for interval, freq in bin_intervals.items():
+            if current_time >= end_time:
+                break
+            
+            # Determine the end time for this interval
+            if interval == 'end':
+                interval_end = end_time
+            else:
+                interval_end = start_time + pd.Timedelta(interval)
+            
+            # Create bins for this interval
+            bins = pd.date_range(start=current_time, end=min(interval_end, end_time), freq=freq, inclusive='left')
+            
+            # Add bins to the list
+            bin_list.extend([(pid, bin_start, bin_end, bin_counter + i, freq) 
+                             for i, (bin_start, bin_end) in enumerate(zip(bins[:-1], bins[1:]))])
+            
+            # Update the current time and bin counters
+            current_time = bins[-1]
+            bin_counter += len(bins) - 1
+            
+    # Create DataFrame from bin list
+    bin_df = pd.DataFrame(bin_list, columns=['PID', 'bin_start', 'bin_end', 'bin_counter', 'bin_freq'])
+    
+    # Save DataFrame to pickle file
+    if save_path:
+        bin_df.to_pickle(save_path)
+    return bin_df
+
+def ppj_proces():
+    # Requires trIAIge project as ppj
+    from ppj.data.datasets import ppjDataset,TabularDataset
+    # load base and prepare data
+    prePH_base = pd.read_pickle('data/interim/base_df.pkl')
+
+    cfg["prehospital"] = False
+    cfg["prehospital_only"] = False
+
+    ds = TabDS(cfg, base= prePH_base)
+    basecols = ['CPR_hash', 'ServiceDate', 'start', 'first_afsnit', 'trajectory', 'end',
+           'first_RH', 'time_to_RH', 'type_visitation', 'overlap', 'DOB', 'DOD',
+           'SEX', 'PID']
+    base = ds.base[basecols]
+
+    ppj_map = load_ppj_mapping()
+
+    ppjpop = ppj_map[ppj_map.CPR_hash.isin(base.CPR_hash)]
+    logger.info(f"Unique CPR's in ppj: {len(ppjpop['CPR_hash'].unique())}")
+    # Merge mapping to base
+    ph = base.merge(ppjpop, on='CPR_hash', how='outer')
+    ph["CreationTime"] = ph["CreationTime_dt"].dt.floor('h')
+    ph["CreationTime_dt"] = ph["CreationTime_dt"].dt.floor('d')
+    ph["delta_hours_start"] = (pd.to_datetime(ph["CreationTime"])- pd.to_datetime(ph['start'])).dt.total_seconds()/(60*60)
+    ph_pop = ph[(ph.CreationTime_dt<= ph.end) & (ph.delta_hours_start >= -48)].drop_duplicates()
+
+    ppj = load_ppj_data()
+
+    # Extract relevant variables
+    ppj_ds = ppjDataset(mode='input', 
+                        patient_info_file=ph_pop.copy(deep=True),    
+                        ppj_file=ppj.drop_duplicates().copy(deep=True))
+
+    # Extract GCS
+    gcs = ppj_ds.subset_numericals["GCS"].copy(deep=True)
+    try: 
+        gcs.ManualTime.fillna(gcs.CreationTime, inplace=True)
+        gcs["CreationTime"] = gcs ["ManualTime"]
+        del gcs["ManualTime"]
+    except:
+        logger.warning(f"No column manualtime for GCS, proceed")
+
+    gcs["FEATURE"] = "GCS"
+    gcs = gcs.rename(columns = {"CreationTime":"TIMESTAMP", "Value":"VALUE"}).drop(columns=["JournalID", "EventCodeName"])
+    gcs["TIMESTAMP"] = pd.to_datetime(gcs["TIMESTAMP"] ,format='mixed')
+    gcs.to_pickle('data/interim/prehospital_GCS.pkl')
+
+    #Vitals 
+    ts_subset_names = ['M_NInv Sys Blodtryk', 'M_Puls','M_SpO2','M_NInv Dia Blodtryk']
+    ts_subsets = []
+    for s in ts_subset_names:
+        ppj_ds.subset[s]["FEATURE"] = s
+
+        ts_subsets.append(ppj_ds.subset[s])
+    ts_subsets = pd.concat(ts_subsets)
+
+    min_df = pd.DataFrame(ts_subsets.groupby("JournalID").CreationTime.min()).reset_index().rename(columns= {'CreationTime':'prehospital_start'})
+    ph_pop = ph_pop.merge(min_df, on='JournalID', how='left')
+    max_df = pd.DataFrame(ts_subsets.groupby("JournalID").CreationTime.max()).reset_index().rename(columns= {'CreationTime':'prehospital_end'})
+    ph_pop = ph_pop.merge(max_df, on='JournalID', how='left')
+
+    for dt in ["prehospital_start", "prehospital_end"]:
+        ph_pop[dt] = pd.to_datetime(ph_pop[dt])
+
+    ph_pop['prehospital_duration'] = ph_pop['prehospital_end'] -ph_pop['prehospital_start'] 
+    ph_pop['prehospital_duration'].describe()
+
+    ph_pop = ph_pop.drop(columns=["JournalID", "delta_hours_start", "CreationTime_dt","CreationTime",
+                                 "prehospital_start", "prehospital_end", "prehospital_duration"]).drop_duplicates()
+
+    # Now, same again but find start and end for each PID, not JID
+    min_df = pd.DataFrame(ts_subsets.groupby("PID").CreationTime.min()).reset_index().rename(columns= {'CreationTime':'prehospital_start'})
+    ph_pop = ph_pop.merge(min_df, on='PID', how='left')
+    max_df = pd.DataFrame(ts_subsets.groupby("PID").CreationTime.max()).reset_index().rename(columns= {'CreationTime':'prehospital_end'})
+    ph_pop = ph_pop.merge(max_df, on='PID', how='left')
+
+    for dt in ["prehospital_start", "prehospital_end"]:
+        ph_pop[dt] = pd.to_datetime(ph_pop[dt])
+
+    # ABCD
+
+    tab_subset_names =['A: Luftveje', 'B: Respiration', 'C: Cirkulation', 'D: Bevidsthedsniveau']
+    tab_subsets = []
+    for s in tab_subset_names:
+        ppj_ds.subset[s]["FEATURE"] = s
+        tab_subsets.append(ppj_ds.subset[s])
+    tab_subsets = pd.concat(tab_subsets)
+
+    # Formatting
+    tab_ds = TabularDataset(base = ppj_ds, default_mode=False)
+
+    for df in tab_ds.base.subset_categoricals.keys(): # type: ignore
+        ss = tab_ds.base.subset_categoricals[df].copy(deep=True)
+        print(df, ss.PID.duplicated().sum())
+
+    tab_ds.merge_categoricals()
+    rename_cols= {  "A: Luftveje_Value": "A",
+                    "B: Respiration_Value" : "B", 
+                    "C: Cirkulation_Value": "C", 
+                    "D: Bevidsthedsniveau_Value":"D"}
+    export_df = tab_ds.df.rename(columns=rename_cols)
+    export_df = export_df.merge(ph_pop[["prehospital_start", "prehospital_end", "PID"]], on='PID', how='inner')
+
+    assert export_df.PID.duplicated().sum() == 0
+    assert len(export_df) == len(ph_pop)
+
+    export_df.to_pickle('data/interim/ppj_base_df.pkl')
+
+
+    # Add PH information to large base, use normal start if no PH for binning df
+    base = prePH_base.merge(ph_pop[["PID","prehospital_start","prehospital_end"]], on='PID',how='left')
+    base.loc[base.prehospital_start.isnull(), "prehospital_start"] = base.loc[base.prehospital_start.isnull()]["start"]
+
+    bin_df = create_bin_df_ppj( base
+                           ,cfg["bin_intervals"],'prehospital_start', 'end')
+
+    bin_df.to_pickle('data/interim/bin_df.pkl')
+
+    # now corrrect feature maps
+    mapping = {"M_NInv Sys Blodtryk": "SBP", "M_NInv Dia Blodtryk":"DBP", "M_Puls":"HR", 'M_SpO2':'SPO2'}
+    ts_subsets["FEATURE"] = ts_subsets["FEATURE"].replace(mapping)
+    ts_subsets.rename(columns={"Value":"VALUE","CreationTime":"TIMESTAMP" }, inplace=True)
+    ts_subsets = ts_subsets[(ts_subsets.PID.notnull()) & (ts_subsets.PID.isin(ph_pop.PID.unique()))]
+
+    ts_subsets["TIMESTAMP"] = pd.to_datetime(ts_subsets["TIMESTAMP"] )
+    ts_subsets[["TIMESTAMP","PID", "FEATURE", "VALUE"]].to_pickle('data/interim/prehospital_VitaleVaerdier.pkl')
